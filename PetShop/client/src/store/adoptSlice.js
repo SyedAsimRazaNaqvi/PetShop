@@ -18,7 +18,7 @@ export const initWeb3 = createAsyncThunk(
                 const addresses = await web3.eth.getAccounts();
                 thunkAPI.dispatch(loadAdopters({
                     contract,
-                    address:addresses[0]
+                    address: addresses[0]
                 }));
                 return {
                     web3: web3,
@@ -26,7 +26,8 @@ export const initWeb3 = createAsyncThunk(
                     address: addresses[0]
                 }
             } else {
-                console.log("Error in loading Web3")
+                // console.log("Error in loading Web3")
+                alert("Web3 Failed to load");
             }
         } catch (error) {
             console.log("Error Loading in Blockchain App", error)
@@ -43,7 +44,32 @@ export const loadAdopters = createAsyncThunk(
             return adopterList;
         } catch (error) {
             console.log("Error in Load Adapter: ", error);
+
         }
+    }
+)
+
+export const adoptPet = createAsyncThunk(
+    "AdoptPet",
+    async (petIndex, thunkAPI) => {
+
+        console.log("Try to adopt pet");
+        const { contract, address } = await thunkAPI.getState().adoptReducer;
+        //console.log(contract,address)
+        const result = await contract.methods.adopts(petIndex).send({ from: address });
+        console.log("after adopt = ", adopt);
+        return { adopterAddress: result.from, petIndex: petIndex };
+    }
+)
+
+
+export const removePet = createAsyncThunk(
+    "RemovePet",
+    async (petIndex, thunkAPI) => {
+        const { contract, address } = await thunkAPI.getState().adoptReducer;
+        //console.log(contract,address)
+        const result = await contract.methods.removeAdoption(petIndex).send({ from: address });
+        return { adopterAddress: result.from, petIndex: petIndex };
     }
 )
 
@@ -53,7 +79,10 @@ const adoptSlice = createSlice({
         web3: null,
         contract: null,
         address: null,
-        adopters:[]
+        adopters: [],
+        InProgress: false,
+        error: false,
+        errMessage: ""
     },
     reducers: {
         adopt: () => {
@@ -62,13 +91,40 @@ const adoptSlice = createSlice({
     },
     extraReducers: {
         [initWeb3.fulfilled]: (state, action) => {
-            // console.log("In fulfill =",action.payload)
             state.web3 = action.payload.web3
             state.contract = action.payload.contract
             state.address = action.payload.address
         },
-        [loadAdopters.fulfilled]: (state, action) =>{
+        [loadAdopters.fulfilled]: (state, action) => {
             state.adopters = action.payload
+        },
+        [adoptPet.fulfilled]: (state, action) => {
+            state.adopters[action.payload.petIndex] = action.payload.adopterAddress;
+            state.InProgress = false;
+            state.error = false;
+        },
+        [adoptPet.pending]: (state, action) => {
+            state.InProgress = true;
+            state.error = false;
+        },
+        [adoptPet.rejected]: (state, action) => {
+            state.InProgress = false;
+            state.error = true;
+            state.errMessage = action.error.message
+        },
+        [removePet.fulfilled]: (state, action) => {
+            state.adopters[action.payload.petIndex] = action.payload.adopterAddress;
+            state.InProgress = false;
+            state.error = false;
+        },
+        [removePet.pending]: (state, action) => {
+            state.InProgress = true;
+            state.error = false;
+        },
+        [removePet.rejected]: (state, action) => {
+            state.InProgress = false;
+            state.error = true;
+            state.errMessage = action.error.message
         }
     }
 })
